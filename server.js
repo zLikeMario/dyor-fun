@@ -36,24 +36,24 @@ async function startScraping() {
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
   });
 
-  const url = "https://dyorswap.org/home";
+  const url = "http://402.fun/";
 
   console.log("等待页面加载完成...");
   await page.goto(url, { waitUntil: "networkidle2" });
   while (true) {
     try {
       await page.reload({ waitUntil: "networkidle2" });
-      await page.waitForSelector('div[data-popper-placement="bottom"]');
+      await page.waitForSelector("button");
       console.log("获取元素");
-      const chainNames = await page.$$eval(
-        'div[data-popper-placement="bottom"] button div[color="text"], div[data-popper-placement="bottom"] button div[color="secondary"]',
-        (els) => els.map((el) => el.innerHTML.trim()).filter(Boolean)
-      );
-      console.log("抓取到的数据:", chainNames);
+      const buttonText = await page.$eval("button", (el) => {
+        return el.innerHTML.trim();
+      });
+      const isComingSoon = buttonText === "即将上线";
+      console.log("按钮内容:", `${buttonText} - ${isComingSoon}`);
       // 通过 ws 发送数据到所有客户端
       wsClients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN) {
-          client.send(JSON.stringify({ chainNames }));
+          client.send(JSON.stringify({ isComingSoon }));
         }
       });
     } catch (err) {

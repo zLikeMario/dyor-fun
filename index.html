@@ -24,7 +24,7 @@
     </style>
   </head>
   <body>
-    <h2>链名称实时监听</h2>
+    <h2>等待上限</h2>
     <div id="controls">
       <button id="pauseBtn">暂停</button>
       <button id="resumeBtn" disabled>继续</button>
@@ -55,26 +55,13 @@
           } catch (e) {
             return;
           }
-          if (!data.chainNames) return;
+          if (!data.isComingSoon) return;
           // 检查是否有新增
-          if (data.chainNames.length > lastChains.length) {
-            dingdong.play();
-          }
-          lastChains = data.chainNames;
-          renderChains(data.chainNames);
+          dingdong.play();
         };
         ws.onclose = function () {
           setTimeout(connectWS, 2000); // 自动重连
         };
-      }
-
-      function renderChains(chains) {
-        chainList.innerHTML = "";
-        chains.forEach((name, idx) => {
-          const li = document.createElement("li");
-          li.textContent = name;
-          chainList.appendChild(li);
-        });
       }
 
       pauseBtn.onclick = function () {
