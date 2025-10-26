@@ -96,6 +96,12 @@
           let data;
           try {
             data = JSON.parse(event.data);
+            chainList.innerHTML = "";
+            const li = document.createElement("li");
+            li.innerHTML = data.menus;
+            const li2 = document.createElement("li");
+            li2.innerHTML = data.tabs;
+            chainList.append(li, li2);
             if (getMenus() !== data.menus || getTabs() !== data.tabs) {
               dingdong.play();
             }
@@ -110,23 +116,23 @@
         };
       }
 
+      let timer;
       pauseBtn.onclick = function () {
         paused = true;
         pauseBtn.disabled = true;
         startBtn.disabled = false;
+        clearInterval(timer);
       };
-      startBtn.onclick = function () {
+      startBtn.onclick = async function () {
         paused = false;
         pauseBtn.disabled = false;
         startBtn.disabled = true;
-      };
 
-      !(async () => {
-        while (true) {
-          if (!paused) listerList();
-          await sleep(3000);
-        }
-      })();
+        connectWS();
+        timer = setInterval(() => {
+          listerList();
+        }, 3000);
+      };
     </script>
   </body>
 </html>
