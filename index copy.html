@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+  <head>
+    <meta charset="UTF-8" />
+    <title>链名称实时监听</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 40px;
+      }
+      #chainList {
+        margin-top: 20px;
+      }
+      #controls {
+        margin-bottom: 20px;
+      }
+      button {
+        margin-right: 10px;
+      }
+      .new {
+        color: green;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>等待上限</h2>
+    <div id="controls">
+      <button id="pauseBtn">暂停</button>
+      <button id="resumeBtn" disabled>继续</button>
+    </div>
+    <ul id="chainList"></ul>
+    <audio
+      id="dingdong"
+      src="https://orangefreesounds.com/wp-content/uploads/2023/07/Sound-effect-ding-dong.mp3"
+      preload="auto"
+    ></audio>
+    <script>
+      let ws;
+      let paused = false;
+      let lastChains = [];
+      const chainList = document.getElementById("chainList");
+      const pauseBtn = document.getElementById("pauseBtn");
+      const resumeBtn = document.getElementById("resumeBtn");
+      const dingdong = document.getElementById("dingdong");
+
+      dingdong.play();
+      function connectWS() {
+        ws = new WebSocket("ws://" + location.hostname + ":3000");
+        ws.onmessage = function (event) {
+          if (paused) return;
+          let data;
+          try {
+            data = JSON.parse(event.data);
+          } catch (e) {
+            return;
+          }
+          if (data.isComingSoon) return;
+          // 检查是否有新增
+          dingdong.play();
+        };
+        ws.onclose = function () {
+          setTimeout(connectWS, 2000); // 自动重连
+        };
+      }
+
+      pauseBtn.onclick = function () {
+        paused = true;
+        pauseBtn.disabled = true;
+        resumeBtn.disabled = false;
+      };
+      resumeBtn.onclick = function () {
+        paused = false;
+        pauseBtn.disabled = false;
+        resumeBtn.disabled = true;
+      };
+
+      connectWS();
+    </script>
+  </body>
+</html>

@@ -36,24 +36,27 @@ async function startScraping() {
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
   });
 
-  const url = "http://402.fun/";
+  const url = "https://www.app.bitagent.io/agents/prototype";
 
   console.log("等待页面加载完成...");
   await page.goto(url, { waitUntil: "networkidle2" });
   while (true) {
     try {
       await page.reload({ waitUntil: "networkidle2" });
-      await page.waitForSelector("button");
+      await page.waitForSelector("header ul.menu");
       console.log("获取元素");
-      const buttonText = await page.$eval("button", (el) => {
-        return el.innerHTML.trim();
+      const menus = await page.$$eval("header ul.menu li", (els) => {
+        return els.map((el) => el.innerText.trim()).join(",");
       });
-      const isComingSoon = buttonText === "即将上线";
-      console.log("按钮内容:", `${buttonText} - ${isComingSoon}`);
+      const tabs = await page.$$eval("main a[href*='/agents/']", (els) => {
+        return els.map((el) => el.innerText.trim()).join(",");
+      });
+      console.log("按钮内容:", `${menus}`);
+      console.log("按钮内容:", `${tabs}`);
       // 通过 ws 发送数据到所有客户端
       wsClients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN) {
-          client.send(JSON.stringify({ isComingSoon }));
+          client.send(JSON.stringify({ menus, tabs }));
         }
       });
     } catch (err) {
