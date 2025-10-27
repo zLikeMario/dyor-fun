@@ -124,8 +124,8 @@ async function fourMemePage() {
       const handles = await page.$$('button[id*="headlessui-listbox-button"]');
       // 模拟鼠标移入
       await Promise.all([
-        handles[1].hover(),
-        handles[1].click(),
+        handles[0].hover(),
+        handles[0].click(),
         new Promise((resolve) => setTimeout(resolve, 5000)),
       ]);
     } catch (err) {
