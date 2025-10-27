@@ -29,11 +29,9 @@
       <button id="startBtn">开始</button>
     </div>
     <ul id="chainList"></ul>
-    <audio
-      id="dingdong"
-      src="https://orangefreesounds.com/wp-content/uploads/2023/07/Sound-effect-ding-dong.mp3"
-      preload="auto"
-    ></audio>
+    <audio id="dingdong" src="./dingdong.mp3" preload="auto"></audio>
+    <audio id="gu" src="./Owl-hoot-sound-effect.mp3" preload="auto"></audio>
+    <audio id="ge" src="./echo-sound-effect.mp3" preload="auto"></audio>
     <script>
       let ws;
       let paused = true;
@@ -48,6 +46,8 @@
       }
 
       const dingdong = document.getElementById("dingdong");
+      const gu = document.getElementById("gu");
+      const ge = document.getElementById("ge");
 
       const sleep = (interval = 1000) =>
         new Promise((resolve) => setTimeout(resolve, interval));
@@ -102,8 +102,13 @@
             const li2 = document.createElement("li");
             li2.innerHTML = data.tabs;
             chainList.append(li, li2);
-            if (getMenus() !== data.menus || getTabs() !== data.tabs) {
-              dingdong.play();
+            if (getMenus() !== data.menus) {
+              console.log("gu menu change");
+              gu.play();
+            }
+            if (getTabs() !== data.tabs) {
+              console.log("ge tabs change");
+              ge.play();
             }
             setMenus(data.menus);
             setTabs(data.tabs);
