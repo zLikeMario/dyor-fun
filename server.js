@@ -38,25 +38,27 @@ async function wwwAppBitagentIoPage() {
   });
 
   await page.goto(url, { waitUntil: "networkidle2" });
-  while (wsClients.length) {
+  while (true) {
     try {
-      await page.reload({ waitUntil: "networkidle2" });
-      console.log(`${url} 页面加载完成，开始抓取内容`);
-      await page.waitForSelector("header ul.menu");
-      const menus = await page.$$eval("header ul.menu li", (els) => {
-        return els.map((el) => el.innerText.trim()).join(",");
-      });
-      const tabs = await page.$$eval("main a[href*='/agents/']", (els) => {
-        return els.map((el) => el.innerText.trim()).join(",");
-      });
-      console.log("wwwAppBitagentIo Menus 内容:", `${menus}`);
-      console.log("wwwAppBitagentIo Tabs 内容:", `${tabs}`);
-      // 通过 ws 发送数据到所有客户端
-      wsClients.forEach((client) => {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send(JSON.stringify({ menus, tabs }));
-        }
-      });
+      if (wsClients.length) {
+        await page.reload({ waitUntil: "networkidle2" });
+        console.log(`${url} 页面加载完成，开始抓取内容`);
+        await page.waitForSelector("header ul.menu");
+        const menus = await page.$$eval("header ul.menu li", (els) => {
+          return els.map((el) => el.innerText.trim()).join(",");
+        });
+        const tabs = await page.$$eval("main a[href*='/agents/']", (els) => {
+          return els.map((el) => el.innerText.trim()).join(",");
+        });
+        console.log("wwwAppBitagentIo Menus 内容:", `${menus}`);
+        console.log("wwwAppBitagentIo Tabs 内容:", `${tabs}`);
+        // 通过 ws 发送数据到所有客户端
+        wsClients.forEach((client) => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify({ menus, tabs }));
+          }
+        });
+      }
     } catch (err) {
       console.error("抓取失败:", err);
     }
@@ -87,47 +89,51 @@ async function fourMemePage() {
   });
 
   await page.goto(url, { waitUntil: "networkidle2" });
-  while (wsClients.length) {
+  while (true) {
     try {
-      await page.reload({ waitUntil: "networkidle2" });
-      console.log(`${url} 页面加载完成，开始抓取内容`);
-      await page.waitForSelector('button[id*="headlessui-listbox-button"]');
-      page.removeExposedFunction("onMutation").catch(() => {});
-      // 暴露一个 Node 端函数，让页面内的 observer 能调用
-      await page.exposeFunction("onMutation", (mutations) => {
-        console.log(`检测到新增元素：${mutations.length} 个`);
-        if (!mutations.length) return;
-        // 通过 ws 发送数据到所有客户端
-        wsClients.forEach((client) => {
-          if (client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify({ mutations }));
-          }
+      if (wsClients.length) {
+        await page.reload({ waitUntil: "networkidle2" });
+        console.log(`${url} 页面加载完成，开始抓取内容`);
+        await page.waitForSelector('button[id*="headlessui-listbox-button"]');
+        page.removeExposedFunction("onMutation").catch(() => {});
+        // 暴露一个 Node 端函数，让页面内的 observer 能调用
+        await page.exposeFunction("onMutation", (mutations) => {
+          console.log(`检测到新增元素：${mutations.length} 个`);
+          if (!mutations.length) return;
+          // 通过 ws 发送数据到所有客户端
+          wsClients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+              client.send(JSON.stringify({ mutations }));
+            }
+          });
         });
-      });
 
-      // 在页面上下文中注册 MutationObserver
-      await page.evaluate(() => {
-        const observer = new MutationObserver((mutations) => {
-          const added = new Set();
-          for (const m of mutations) {
-            m.addedNodes.forEach((n) => {
-              if (n.nodeType === 1) {
-                added.add(n.innerText);
-              }
-            });
-          }
-          if (added.size) window.onMutation(added);
+        // 在页面上下文中注册 MutationObserver
+        await page.evaluate(() => {
+          const observer = new MutationObserver((mutations) => {
+            const added = new Set();
+            for (const m of mutations) {
+              m.addedNodes.forEach((n) => {
+                if (n.nodeType === 1) {
+                  added.add(n.innerText);
+                }
+              });
+            }
+            if (added.size) window.onMutation(added);
+          });
+          observer.observe(document.body, { childList: true, subtree: true });
         });
-        observer.observe(document.body, { childList: true, subtree: true });
-      });
 
-      const handles = await page.$$('button[id*="headlessui-listbox-button"]');
-      // 模拟鼠标移入
-      await Promise.all([
-        handles[0].hover(),
-        handles[0].click(),
-        new Promise((resolve) => setTimeout(resolve, 5000)),
-      ]);
+        const handles = await page.$$(
+          'button[id*="headlessui-listbox-button"]',
+        );
+        // 模拟鼠标移入
+        await Promise.all([
+          handles[0].hover(),
+          handles[0].click(),
+          new Promise((resolve) => setTimeout(resolve, 5000)),
+        ]);
+      }
     } catch (err) {
       console.error("抓取失败:", err);
     }
