@@ -15,10 +15,8 @@ wss.on("connection", (ws) => {
   });
 });
 
-async function wwwAppBitagentIoPage() {
-  const url = "https://www.app.bitagent.io/agents/prototype";
+async function openPageAndToUrl(url) {
   console.log(`准备打开 ${url}`);
-
   const browser = await puppeteer.launch({
     headless: "new",
     args: [
@@ -30,14 +28,18 @@ async function wwwAppBitagentIoPage() {
       "--window-size=1920,1080",
     ],
   });
-
   const page = await browser.newPage();
   await page.setUserAgent({
     userAgent:
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
   });
-
   await page.goto(url, { waitUntil: "networkidle2" });
+  return { browser, page };
+}
+
+async function wwwAppBitagentIoPage() {
+  const url = "https://www.app.bitagent.io/agents/prototype";
+  const { page } = await openPageAndToUrl(url);
   while (true) {
     try {
       if (wsClients.length) {
@@ -60,7 +62,7 @@ async function wwwAppBitagentIoPage() {
         });
       }
     } catch (err) {
-      console.error("抓取失败:", err);
+      console.error("抓取失败:", url, err);
     }
     await new Promise((resolve) => setTimeout(resolve, 5000));
   }
@@ -69,33 +71,14 @@ async function wwwAppBitagentIoPage() {
 
 async function fourMemePage() {
   const url = "https://four.meme/zh-TW/create-token?entry=fair-mode";
-  console.log(`准备打开 ${url}`);
-  const browser = await puppeteer.launch({
-    headless: "new",
-    args: [
-      "--no-sandbox",
-      "--disable-setuid-sandbox",
-      "--disable-dev-shm-usage",
-      "--disable-accelerated-2d-canvas",
-      "--disable-gpu",
-      "--window-size=1920,1080",
-    ],
-  });
-
-  const page = await browser.newPage();
-  await page.setUserAgent({
-    userAgent:
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
-  });
-
-  await page.goto(url, { waitUntil: "networkidle2" });
+  const { page } = await openPageAndToUrl(url);
   while (true) {
     try {
       if (wsClients.length) {
         await page.reload({ waitUntil: "networkidle2" });
         console.log(`${url} 页面加载完成，开始抓取内容`);
         await page.waitForSelector('button[id*="headlessui-listbox-button"]');
-        page.removeExposedFunction("onMutation").catch(() => {});
+        page.removeExposedFunction("onMutation").catch(() => { });
         // 暴露一个 Node 端函数，让页面内的 observer 能调用
         await page.exposeFunction("onMutation", (mutations) => {
           console.log(`检测到新增元素：${mutations.length} 个`);
@@ -125,7 +108,7 @@ async function fourMemePage() {
         });
 
         const handles = await page.$$(
-          'button[id*="headlessui-listbox-button"]',
+          'button[id*="headlessui-listbox-button"]'
         );
         // 模拟鼠标移入
         await Promise.all([
@@ -135,7 +118,7 @@ async function fourMemePage() {
         ]);
       }
     } catch (err) {
-      console.error("抓取失败:", err);
+      console.error("抓取失败:", url, err);
     }
     await new Promise((resolve) => setTimeout(resolve, 5000));
   }
@@ -143,42 +126,26 @@ async function fourMemePage() {
 }
 
 async function mini402FunPage() {
-  const url = "https://mini402.fun/";
-  console.log(`准备打开 ${url}`);
-  const browser = await puppeteer.launch({
-    headless: "new",
-    args: [
-      "--no-sandbox",
-      "--disable-setuid-sandbox",
-      "--disable-dev-shm-usage",
-      "--disable-accelerated-2d-canvas",
-      "--disable-gpu",
-      "--window-size=1920,1080",
-    ],
-  });
-
-  const page = await browser.newPage();
-  await page.setUserAgent({
-    userAgent:
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
-  });
-
-  await page.goto(url, { waitUntil: "networkidle2" });
-  console.log(`${url} 页面加载完成，开始抓取内容`);
+  const url = "https://mini402.fun";
+  const { page } = await openPageAndToUrl(url);
   while (true) {
     try {
       if (wsClients.length) {
         await page.reload({ waitUntil: "networkidle2" });
+        console.log(`${url} 重新加载成功，准备抓取数据`)
         await page.waitForSelector("h1");
         const content = await page.$eval("h1", (el) => el.innerText);
-        wsClients.forEach((client) => {
-          if (client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify({ mini402Fun: content }));
-          }
-        });
+        await new Promise((resolve) => {
+          wsClients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+              client.send(JSON.stringify({ mini402Fun: content }));
+              resolve();
+            }
+          });
+        })
       }
     } catch (err) {
-      console.error("抓取失败:", err);
+      console.error("抓取失败:", url, err);
     }
     await new Promise((resolve) => setTimeout(resolve, 3000));
   }
@@ -186,9 +153,14 @@ async function mini402FunPage() {
 }
 
 async function startScraping() {
-  wwwAppBitagentIoPage();
-  fourMemePage();
-  mini402FunPage();
+  try {
+    await Promise.all([
+      wwwAppBitagentIoPage(),
+      fourMemePage(),
+      mini402FunPage()
+    ])
+  } catch {
+  }
 }
 
 app.get("/", (req, res) => {
