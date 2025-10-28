@@ -172,8 +172,8 @@ async function mini402FunPage() {
 }
 
 async function startScraping() {
-  // wwwAppBitagentIoPage();
-  // fourMemePage();
+  wwwAppBitagentIoPage();
+  fourMemePage();
   mini402FunPage();
 }
 
