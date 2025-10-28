@@ -145,9 +145,23 @@ async function fourMemePage() {
 async function mini402FunPage() {
   const url = "https://mini402.fun/";
   console.log(`准备打开 ${url}`);
-  const browser = await puppeteer.launch({ headless: "new" });
+  const browser = await puppeteer.launch({
+    headless: "new",
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+      "--disable-accelerated-2d-canvas",
+      "--disable-gpu",
+      "--window-size=1920,1080",
+    ],
+  });
 
   const page = await browser.newPage();
+  await page.setUserAgent({
+    userAgent:
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
+  });
 
   await page.goto(url, { waitUntil: "networkidle2" });
   console.log(`${url} 页面加载完成，开始抓取内容`);
