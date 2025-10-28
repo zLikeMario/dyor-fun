@@ -142,9 +142,39 @@ async function fourMemePage() {
   // browser.close(); // 永远不会到达这里，因为无限循环
 }
 
+async function mini402FunPage() {
+  const url = "https://mini402.fun/";
+  console.log(`准备打开 ${url}`);
+  const browser = await puppeteer.launch({ headless: "new" });
+
+  const page = await browser.newPage();
+
+  await page.goto(url, { waitUntil: "networkidle2" });
+  console.log(`${url} 页面加载完成，开始抓取内容`);
+  while (true) {
+    try {
+      if (wsClients.length) {
+        await page.reload({ waitUntil: "networkidle2" });
+        await page.waitForSelector("h1");
+        const content = await page.$eval("h1", (el) => el.innerText);
+        wsClients.forEach((client) => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify({ mini402Fun: content }));
+          }
+        });
+      }
+    } catch (err) {
+      console.error("抓取失败:", err);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+  }
+  // browser.close(); // 永远不会到达这里，因为无限循环
+}
+
 async function startScraping() {
-  wwwAppBitagentIoPage();
-  fourMemePage();
+  // wwwAppBitagentIoPage();
+  // fourMemePage();
+  mini402FunPage();
 }
 
 app.get("/", (req, res) => {
