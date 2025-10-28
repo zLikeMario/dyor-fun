@@ -131,7 +131,7 @@ async function fourMemePage() {
         await Promise.all([
           handles[0].hover(),
           handles[0].click(),
-          new Promise((resolve) => setTimeout(resolve, 5000)),
+          new Promise((resolve) => setTimeout(resolve, 2000)),
         ]);
       }
     } catch (err) {
