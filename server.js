@@ -37,33 +37,27 @@ async function openPageAndToUrl(url) {
     await page.goto(url, { waitUntil: "networkidle2" });
     return { browser, page };
   } catch {
-    console.log(`创建页面失败，重新创建 ${url}`)
+    console.log(`创建页面失败，重新创建 ${url}`);
     await new Promise((resolve) => setTimeout(resolve, 3000));
-    return await openPageAndToUrl(url)
+    return await openPageAndToUrl(url);
   }
 }
 
-async function wwwAppBitagentIoPage() {
-  const url = "https://www.app.bitagent.io/agents/prototype";
+async function b402scanAi() {
+  const url = "https://www.b402scan.ai/";
   const { page } = await openPageAndToUrl(url);
   while (true) {
     try {
       if (wsClients.length) {
         await page.reload({ waitUntil: "networkidle2" });
         console.log(`${url} 页面加载完成，开始抓取内容`);
-        await page.waitForSelector("header ul.menu");
-        const menus = await page.$$eval("header ul.menu li", (els) => {
-          return els.map((el) => el.innerText.trim()).join(",");
-        });
-        const tabs = await page.$$eval("main a[href*='/agents/']", (els) => {
-          return els.map((el) => el.innerText.trim()).join(",");
-        });
-        console.log("wwwAppBitagentIo Menus 内容:", `${menus}`);
-        console.log("wwwAppBitagentIo Tabs 内容:", `${tabs}`);
-        // 通过 ws 发送数据到所有客户端
+        await page.waitForSelector("header");
+
+        const b402scanAi = await page.$eval("div.fixed", (el) => el.innerText);
+        console.log(b402scanAi);
         wsClients.forEach((client) => {
           if (client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify({ menus, tabs }));
+            client.send(JSON.stringify({ b402scanAi }));
           }
         });
       }
@@ -86,13 +80,13 @@ async function fourMemePage() {
         await page.waitForSelector('button[id*="headlessui-listbox-button"]');
         page.removeExposedFunction("onMutation").catch(() => { });
         // 暴露一个 Node 端函数，让页面内的 observer 能调用
-        await page.exposeFunction("onMutation", (mutations) => {
-          console.log(`检测到新增元素：${mutations.length} 个`);
-          if (!mutations.length) return;
+        await page.exposeFunction("onMutation", (fourMeme) => {
+          console.log(`检测到新增元素：${fourMeme.length} 个`);
+          if (!fourMeme.length) return;
           // 通过 ws 发送数据到所有客户端
           wsClients.forEach((client) => {
             if (client.readyState === WebSocket.OPEN) {
-              client.send(JSON.stringify({ mutations }));
+              client.send(JSON.stringify({ fourMeme }));
             }
           });
         });
@@ -131,42 +125,10 @@ async function fourMemePage() {
   // browser.close(); // 永远不会到达这里，因为无限循环
 }
 
-async function mini402FunPage() {
-  const url = "https://mini402.fun";
-  const { page } = await openPageAndToUrl(url);
-  while (true) {
-    try {
-      if (wsClients.length) {
-        await page.reload({ waitUntil: "networkidle2" });
-        console.log(`${url} 重新加载成功，准备抓取数据`)
-        await page.waitForSelector("h1");
-        const content = await page.$eval("h1", (el) => el.innerText);
-        await new Promise((resolve) => {
-          wsClients.forEach((client) => {
-            if (client.readyState === WebSocket.OPEN) {
-              client.send(JSON.stringify({ mini402Fun: content }));
-              resolve();
-            }
-          });
-        })
-      }
-    } catch (err) {
-      console.error("抓取失败:", url, err);
-    }
-    await new Promise((resolve) => setTimeout(resolve, 3000));
-  }
-  // browser.close(); // 永远不会到达这里，因为无限循环
-}
-
 async function startScraping() {
   try {
-    await Promise.all([
-      wwwAppBitagentIoPage(),
-      fourMemePage(),
-      mini402FunPage()
-    ])
-  } catch {
-  }
+    await Promise.all([fourMemePage(), b402scanAi()]);
+  } catch { }
 }
 
 app.get("/", (req, res) => {
