@@ -48,7 +48,7 @@ async function dyorswap() {
   const { page } = await openPageAndToUrl(url);
   while (true) {
     try {
-      // if (wsClients.length) {
+      if (wsClients.length) {
         await page.reload({ waitUntil: "networkidle2" });
         console.log(`${url} 页面加载完成，开始抓取内容`);
         await page.waitForSelector(".ant-progress-bg.ant-progress-bg-outer");
@@ -60,7 +60,7 @@ async function dyorswap() {
             client.send(JSON.stringify({ dyorswap }));
           }
         });
-      // }
+      }
     } catch (err) {
       console.error("抓取失败:", url, err);
     }
