@@ -69,35 +69,9 @@ async function dyorswap() {
   // browser.close(); // 永远不会到达这里，因为无限循环
 }
 
-async function b402scanAi() {
-  const url = "https://www.b402scan.ai/";
-  const { page } = await openPageAndToUrl(url);
-  while (true) {
-    try {
-      if (wsClients.length) {
-        await page.reload({ waitUntil: "networkidle2" });
-        console.log(`${url} 页面加载完成，开始抓取内容`);
-        await page.waitForSelector("header");
-
-        const b402scanAi = await page.$eval("div.fixed", (el) => el.innerText);
-        console.log(b402scanAi);
-        wsClients.forEach((client) => {
-          if (client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify({ b402scanAi }));
-          }
-        });
-      }
-    } catch (err) {
-      console.error("抓取失败:", url, err);
-    }
-    await new Promise((resolve) => setTimeout(resolve, 5000));
-  }
-  // browser.close(); // 永远不会到达这里，因为无限循环
-}
-
 async function startScraping() {
   try {
-    await Promise.all([b402scanAi(), dyorswap()]);
+    await Promise.all([dyorswap()]);
   } catch { }
 }
 
