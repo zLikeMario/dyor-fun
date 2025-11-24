@@ -43,6 +43,32 @@ async function openPageAndToUrl(url) {
   }
 }
 
+async function dyorswap() {
+  const url = "https://dyorswap.org/home/?chainId=143";
+  const { page } = await openPageAndToUrl(url);
+  while (true) {
+    try {
+      // if (wsClients.length) {
+        await page.reload({ waitUntil: "networkidle2" });
+        console.log(`${url} 页面加载完成，开始抓取内容`);
+        await page.waitForSelector(".ant-progress-bg.ant-progress-bg-outer");
+
+        const dyorswap = await page.$eval(".ant-progress-bg.ant-progress-bg-outer", (el) => el.style.width);
+        console.log(dyorswap);
+        wsClients.forEach((client) => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify({ dyorswap }));
+          }
+        });
+      // }
+    } catch (err) {
+      console.error("抓取失败:", url, err);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+  }
+  // browser.close(); // 永远不会到达这里，因为无限循环
+}
+
 async function b402scanAi() {
   const url = "https://www.b402scan.ai/";
   const { page } = await openPageAndToUrl(url);
@@ -71,7 +97,7 @@ async function b402scanAi() {
 
 async function startScraping() {
   try {
-    await Promise.all([b402scanAi()]);
+    await Promise.all([b402scanAi(), dyorswap()]);
   } catch { }
 }
 
