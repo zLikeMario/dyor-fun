@@ -51,8 +51,10 @@ async function dyorswap() {
       if (wsClients.length) {
         await page.reload({ waitUntil: "networkidle2" });
         console.log(`${url} 页面加载完成，开始抓取内容`);
+        await new Promise((resolve) => setTimeout(resolve, 3000));
         await page.waitForSelector(".ant-progress-bg.ant-progress-bg-outer");
 
+        await new Promise((resolve) => setTimeout(resolve, 1000));
         const dyorswap = await page.$eval(".ant-progress-bg.ant-progress-bg-outer", (el) => el.style.width);
         console.log(dyorswap);
         wsClients.forEach((client) => {
