@@ -71,9 +71,69 @@ async function dyorswap() {
   // browser.close(); // 永远不会到达这里，因为无限循环
 }
 
+
+async function fourMemePage() {
+  const url = "https://four.meme/zh-TW/create-token?entry=fair-mode";
+  const { page } = await openPageAndToUrl(url);
+  while (true) {
+    try {
+      if (wsClients.length) {
+        await page.reload({ waitUntil: "networkidle2" });
+        console.log(`${url} 页面加载完成，开始抓取内容`);
+        await page.waitForSelector('button[id*="headlessui-listbox-button"]');
+        const menu = await page.$eval("header nav", (el) => el.innerText);
+        page.removeExposedFunction("onMutation").catch(() => { });
+        // 暴露一个 Node 端函数，让页面内的 observer 能调用
+        await page.exposeFunction("onMutation", (tokens) => {
+          console.log('新增内容:', tokens);
+          console.log('菜单:', menu);
+          if (!tokens.length) return;
+          // 通过 ws 发送数据到所有客户端
+          wsClients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+              client.send(JSON.stringify({ fourMeme: { menu, tokens } }));
+            }
+          });
+        });
+
+        // 在页面上下文中注册 MutationObserver
+        await page.evaluate(() => {
+          const observer = new MutationObserver((mutations) => {
+            const added = new Set();
+            for (const m of mutations) {
+              m.addedNodes.forEach((n) => {
+                if (n.nodeType === 1) {
+                  added.add(n.innerText);
+                }
+              });
+            }
+            // 将 Set 转换为数组再传递
+            if (added.size) window.onMutation(Array.from(added));
+          });
+          observer.observe(document.body, { childList: true, subtree: true });
+        });
+
+        const handles = await page.$$(
+          'button[id*="headlessui-listbox-button"]'
+        );
+        // 模拟鼠标移入
+        await Promise.all([
+          handles[0].hover(),
+          handles[0].click(),
+          new Promise((resolve) => setTimeout(resolve, 2000)),
+        ]);
+      }
+    } catch (err) {
+      console.error("抓取失败:", url, err);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+  }
+  // browser.close(); // 永远不会到达这里，因为无限循环
+}
+
 async function startScraping() {
   try {
-    await Promise.all([dyorswap()]);
+    await Promise.all([fourMemePage()]);
   } catch { }
 }
 
