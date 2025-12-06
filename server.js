@@ -84,14 +84,15 @@ async function fourMemePage() {
         const menu = await page.$eval("header nav", (el) => el.innerText);
         page.removeExposedFunction("onMutation").catch(() => { });
         // 暴露一个 Node 端函数，让页面内的 observer 能调用
-        await page.exposeFunction("onMutation", (tokens) => {
+        await page.exposeFunction("onMutation", (texts) => {
+          const tokens = texts.join(', ').split('\n')
+          const navs = menu.join('').split('\n')
           console.log('新增内容:', tokens);
-          console.log('菜单:', menu);
-          if (!tokens.length) return;
+          console.log('菜单:', navs);
           // 通过 ws 发送数据到所有客户端
           wsClients.forEach((client) => {
             if (client.readyState === WebSocket.OPEN) {
-              client.send(JSON.stringify({ fourMeme: { menu, tokens } }));
+              client.send(JSON.stringify({ fourMeme: { menu: navs, tokens } }));
             }
           });
         });
