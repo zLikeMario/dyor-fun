@@ -81,18 +81,18 @@ async function fourMemePage() {
         await page.reload({ waitUntil: "networkidle2" });
         console.log(`${url} 页面加载完成，开始抓取内容`);
         await page.waitForSelector('button[id*="headlessui-listbox-button"]');
-        const menu = await page.$eval("header nav", (el) => el.innerText);
+        const menuText = await page.$eval("header nav", (el) => el.innerText);
         page.removeExposedFunction("onMutation").catch(() => { });
         // 暴露一个 Node 端函数，让页面内的 observer 能调用
         await page.exposeFunction("onMutation", (texts) => {
           const tokens = texts.join(', ').split('\n')
-          const navs = menu.join('').split('\n')
+          const menus = menuText.split('\n')
           console.log('新增内容:', tokens);
-          console.log('菜单:', navs);
+          console.log('菜单:', menus);
           // 通过 ws 发送数据到所有客户端
           wsClients.forEach((client) => {
             if (client.readyState === WebSocket.OPEN) {
-              client.send(JSON.stringify({ fourMeme: { menu: navs, tokens } }));
+              client.send(JSON.stringify({ fourMeme: `Menus: ${menus.join(', ')}\nTokens: ${tokens.join(', ')}` }));
             }
           });
         });
