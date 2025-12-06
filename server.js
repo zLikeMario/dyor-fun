@@ -74,58 +74,87 @@ async function dyorswap() {
 
 async function fourMemePage() {
   const url = "https://four.meme/zh-TW/create-token?entry=fair-mode";
-  const { page } = await openPageAndToUrl(url);
+  let { browser, page } = await openPageAndToUrl(url);
+  let observerSetup = false;
+  
   while (true) {
     try {
       if (wsClients.length) {
-        await page.reload({ waitUntil: "networkidle2" });
-        console.log(`${url} 页面加载完成，开始抓取内容`);
-        await page.waitForSelector('button[id*="headlessui-listbox-button"]');
-        const menuText = await page.$eval("header nav", (el) => el.innerText);
-        page.removeExposedFunction("onMutation").catch(() => { });
-        // 暴露一个 Node 端函数，让页面内的 observer 能调用
-        await page.exposeFunction("onMutation", (texts) => {
-          const tokens = texts.join(', ').split('\n')
-          const menus = menuText.split('\n')
-          console.log('新增内容:', tokens);
-          console.log('菜单:', menus);
-          // 通过 ws 发送数据到所有客户端
-          wsClients.forEach((client) => {
-            if (client.readyState === WebSocket.OPEN) {
-              client.send(JSON.stringify({ fourMeme: `Menus: ${menus.join(', ')}\nTokens: ${tokens.join(', ')}` }));
-            }
-          });
-        });
+        // 如果页面已经失效，重新创建
+        if (!page || page.isClosed()) {
+          console.log('页面已关闭，重新创建');
+          const result = await openPageAndToUrl(url);
+          browser = result.browser;
+          page = result.page;
+          observerSetup = false;
+        }
 
-        // 在页面上下文中注册 MutationObserver
-        await page.evaluate(() => {
-          const observer = new MutationObserver((mutations) => {
-            const added = new Set();
-            for (const m of mutations) {
-              m.addedNodes.forEach((n) => {
-                if (n.nodeType === 1) {
-                  added.add(n.innerText);
-                }
-              });
-            }
-            // 将 Set 转换为数组再传递
-            if (added.size) window.onMutation(Array.from(added));
+        // 只在首次或页面重建后加载
+        if (!observerSetup) {
+          console.log(`${url} 页面加载完成，开始抓取内容`);
+          await page.waitForSelector('button[id*="headlessui-listbox-button"]', { timeout: 10000 });
+          const menuText = await page.$eval("header nav", (el) => el.innerText).catch(() => '');
+          
+          // 移除旧的函数（如果存在）
+          await page.removeExposedFunction("onMutation").catch(() => {});
+          
+          // 暴露一个 Node 端函数，让页面内的 observer 能调用
+          await page.exposeFunction("onMutation", (texts) => {
+            const tokens = texts.join(', ').split('\n')
+            const menus = menuText.split('\n')
+            console.log('新增内容:', tokens);
+            console.log('菜单:', menus);
+            // 通过 ws 发送数据到所有客户端
+            wsClients.forEach((client) => {
+              if (client.readyState === WebSocket.OPEN) {
+                client.send(JSON.stringify({ fourMeme: `Menus: ${menus.join(', ')}\nTokens: ${tokens.join(', ')}` }));
+              }
+            });
           });
-          observer.observe(document.body, { childList: true, subtree: true });
-        });
 
-        const handles = await page.$$(
-          'button[id*="headlessui-listbox-button"]'
-        );
-        // 模拟鼠标移入
-        await Promise.all([
-          handles[0].hover(),
-          handles[0].click(),
-          new Promise((resolve) => setTimeout(resolve, 2000)),
-        ]);
+          // 在页面上下文中注册 MutationObserver
+          await page.evaluate(() => {
+            const observer = new MutationObserver((mutations) => {
+              const added = new Set();
+              for (const m of mutations) {
+                m.addedNodes.forEach((n) => {
+                  if (n.nodeType === 1 && n.innerText && n.innerText.trim()) {
+                    added.add(n.innerText.trim());
+                  }
+                });
+              }
+              // 将 Set 转换为数组再传递
+              if (added.size) window.onMutation(Array.from(added));
+            });
+            observer.observe(document.body, { childList: true, subtree: true });
+          });
+
+          observerSetup = true;
+        }
+
+        // 查找按钮并点击
+        const handles = await page.$$('button[id*="headlessui-listbox-button"]');
+        if (handles && handles.length > 0) {
+          await handles[0].hover();
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          await handles[0].click();
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+        }
       }
     } catch (err) {
-      console.error("抓取失败:", url, err);
+      console.error("抓取失败:", url, err.message);
+      // 发生错误时标记需要重新设置
+      observerSetup = false;
+      // 如果是严重错误，尝试重建页面
+      if (err.message && (err.message.includes('detached') || err.message.includes('closed') || err.message.includes('Target closed'))) {
+        console.log('检测到页面失效，准备重建');
+        try {
+          await browser.close().catch(() => {});
+        } catch {}
+        const result = await openPageAndToUrl(url);
+        browser = result.browser;
+        page = result.page;
+      }
     }
     await new Promise((resolve) => setTimeout(resolve, 5000));
   }
