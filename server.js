@@ -76,7 +76,7 @@ async function fourMemePage() {
   const url = "https://four.meme/zh-TW/create-token?entry=fair-mode";
   let { browser, page } = await openPageAndToUrl(url);
   let observerSetup = false;
-  
+
   while (true) {
     try {
       if (wsClients.length) {
@@ -94,10 +94,10 @@ async function fourMemePage() {
           console.log(`${url} 页面加载完成，开始抓取内容`);
           await page.waitForSelector('button[id*="headlessui-listbox-button"]', { timeout: 10000 });
           const menuText = await page.$eval("header nav", (el) => el.innerText).catch(() => '');
-          
+
           // 移除旧的函数（如果存在）
-          await page.removeExposedFunction("onMutation").catch(() => {});
-          
+          await page.removeExposedFunction("onMutation").catch(() => { });
+
           // 暴露一个 Node 端函数，让页面内的 observer 能调用
           await page.exposeFunction("onMutation", (texts) => {
             const tokens = texts.join(', ').split('\n')
@@ -149,8 +149,8 @@ async function fourMemePage() {
       if (err.message && (err.message.includes('detached') || err.message.includes('closed') || err.message.includes('Target closed'))) {
         console.log('检测到页面失效，准备重建');
         try {
-          await browser.close().catch(() => {});
-        } catch {}
+          await browser.close().catch(() => { });
+        } catch { }
         const result = await openPageAndToUrl(url);
         browser = result.browser;
         page = result.page;
@@ -161,9 +161,62 @@ async function fourMemePage() {
   // browser.close(); // 永远不会到达这里，因为无限循环
 }
 
+async function albanianCriMonitor() {
+  const url = "https://albanian.cri.cn/Gala_2026";
+  let { browser, page } = await openPageAndToUrl(url);
+
+  while (true) {
+    try {
+      if (wsClients.length) {
+        // 检查页面是否失效
+        if (!page || page.isClosed()) {
+          console.log('页面已关闭，重新创建');
+          const result = await openPageAndToUrl(url);
+          browser = result.browser;
+          page = result.page;
+        }
+
+        // 尝试访问页面
+        const response = await page.goto(url, {
+          waitUntil: "domcontentloaded",
+          timeout: 10000
+        }).catch(() => null);
+
+        const status = response ? response.status() : 0;
+        const currentStatus = status === 200 ? 'open' : 'error';
+
+        console.log(`${url} 状态: ${status} (${currentStatus})`);
+
+        // 每次都发送通知
+        const message = currentStatus === 'open' ? '✅ 页面可以访问了！' : `❌ 页面无法访问 (状态码: ${status})`
+
+        wsClients.forEach((client) => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify({ albanianCri: message }));
+          }
+        });
+      }
+    } catch (err) {
+      console.error("监控失败:", url, err.message);
+      // 如果是严重错误，尝试重建页面
+      if (err.message && (err.message.includes('detached') || err.message.includes('closed') || err.message.includes('Target closed'))) {
+        console.log('检测到页面失效，准备重建');
+        try {
+          await browser.close().catch(() => { });
+        } catch { }
+        const result = await openPageAndToUrl(url);
+        browser = result.browser;
+        page = result.page;
+      }
+    }
+    // 每5秒检查一次
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+  }
+}
+
 async function startScraping() {
   try {
-    await Promise.all([fourMemePage()]);
+    await Promise.all([fourMemePage(), albanianCriMonitor()]);
   } catch { }
 }
 
